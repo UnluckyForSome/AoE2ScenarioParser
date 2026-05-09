@@ -1,0 +1,10 @@
+# Legacy bridge diff summary
+#
+# Rows omitted by policy: top of `diff_validation.py` (DIFF IGNORE POLICY + NaN-vs-NaN chunks).
+# Trigger names come from `outputs/.../rebuilt_scenarios/<same stem>_rebuilt.aoe2scenario` (see `--rebuilt-subdir` if you did not use default rebuilt layout).
+# Compare column: first value = rebuilt legacy bridge output; second = DE reference scenario.
+#
+# 0 distinct path+comparison rows · 0 occurrences total · 3 diff files
+
+| Occurrences | Seen in diff file(s) | Path | Comparison |
+|------------:|----------------------|------|------------|
