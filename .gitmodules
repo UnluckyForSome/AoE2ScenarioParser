@@ -1,3 +1,6 @@
 [submodule "AoE2ScenarioParser/legacy_bridge/workbench/othertools/aoe2mcminimap"]
 	path = AoE2ScenarioParser/legacy_bridge/workbench/othertools/aoe2mcminimap
 	url = git@github.com:UnluckyForSome/AOE2-McMinimap.git
+[submodule "AoE2ScenarioParser/legacy_bridge/genie-scx-py"]
+	path = AoE2ScenarioParser/legacy_bridge/genie-scx-py
+	url = git@github.com:UnluckyForSome/genie-scx-py.git

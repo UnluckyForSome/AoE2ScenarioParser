@@ -12,6 +12,7 @@ Example::
 """
 
 import argparse
+import importlib.util
 import random
 import sys
 import traceback
@@ -23,16 +24,15 @@ from typing import Iterable, Literal
 _SCENARIO_SUFFIXES = frozenset({".scn", ".scx", ".aoe2scenario", ".scx2"})
 
 
-def _legacy_bridge_root() -> Path:
-    # .../legacy_bridge/workbench/parser_validation/parser_validation.py → parents[2] == legacy_bridge
-    return Path(__file__).resolve().parents[2]
-
-
-def _ensure_genie_scx_py_on_path() -> None:
-    root = _legacy_bridge_root()
-    s = str(root)
-    if s not in sys.path:
-        sys.path.insert(0, s)
+def _ensure_genie_scx_py_submodule() -> None:
+    lb = Path(__file__).resolve().parents[2]
+    boot = lb / "genie_scx_py_bootstrap.py"
+    spec = importlib.util.spec_from_file_location("legacy_bridge.genie_scx_py_bootstrap", boot)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load genie bootstrap from {boot}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.ensure_genie_scx_py_on_path()
 
 
 def _iter_scenario_files(root: Path, recursive: bool) -> Iterable[Path]:
@@ -187,7 +187,7 @@ def main() -> int:
         k = min(args.count, n_cand)
         files_run = random.sample(candidates, k=k)
 
-    _ensure_genie_scx_py_on_path()
+    _ensure_genie_scx_py_submodule()
 
     outcomes: list[ParseOutcome] = []
     for i, path in enumerate(files_run, start=1):

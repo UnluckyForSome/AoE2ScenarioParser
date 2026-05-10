@@ -12,22 +12,26 @@ smallsample smoke invariants, round-trip sanity). Run from repo root, for exampl
 """
 
 import argparse
+import importlib.util
 import io
 import sys
 from pathlib import Path
 
 
+def _ensure_genie_scx_py_submodule() -> None:
+    lb = Path(__file__).resolve().parents[1]
+    boot = lb / "genie_scx_py_bootstrap.py"
+    spec = importlib.util.spec_from_file_location("legacy_bridge.genie_scx_py_bootstrap", boot)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load genie bootstrap from {boot}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.ensure_genie_scx_py_on_path()
+
+
 def _legacy_bridge_root() -> Path:
     # .../legacy_bridge/workbench/devtools.py → parents[1] == legacy_bridge
     return Path(__file__).resolve().parents[1]
-
-
-def _ensure_genie_scx_py_on_path() -> None:
-    """Put ``legacy_bridge/`` on ``sys.path`` so ``import genie_scx_py`` resolves."""
-    root = _legacy_bridge_root()
-    s = str(root)
-    if s not in sys.path:
-        sys.path.insert(0, s)
 
 
 def _diffchecks_root() -> Path:
@@ -43,7 +47,7 @@ _SKIP_PARSE_NAMES = frozenset({"corlis.aoescn", "original aok - joan 6.scn"})
 
 def cmd_parse_diffchecks() -> int:
     """Parse every legacy container file under ``workbench/diffchecks/*/inputs``."""
-    _ensure_genie_scx_py_on_path()
+    _ensure_genie_scx_py_submodule()
     from genie_scx_py.scenario import Scenario  # type: ignore[import-not-found]
     from genie_scx_py.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
 
@@ -83,7 +87,7 @@ def cmd_parse_diffchecks() -> int:
 
 def cmd_smoke_smallsample() -> int:
     """Parse ``legacy_de_pairs_smallsample`` legacy files and assert basic structural invariants."""
-    _ensure_genie_scx_py_on_path()
+    _ensure_genie_scx_py_submodule()
     from genie_scx_py import Scenario  # type: ignore[import-not-found]
     from genie_scx_py.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
 
@@ -146,7 +150,7 @@ def cmd_smoke_smallsample() -> int:
 
 def cmd_round_trip_smallsample() -> int:
     """Read/write/read smallsample legacy files; compare format + header version."""
-    _ensure_genie_scx_py_on_path()
+    _ensure_genie_scx_py_submodule()
     from genie_scx_py.scenario import Scenario  # type: ignore[import-not-found]
     from genie_scx_py.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
 
