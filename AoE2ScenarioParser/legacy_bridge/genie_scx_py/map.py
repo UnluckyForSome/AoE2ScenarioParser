@@ -87,12 +87,20 @@ class Map:
             m = Map(version=0, width=width, height=height, render_waves=True, tiles=[])
 
         if m.width > 500 or m.height > 500:
-            raise ValueError(f"Unexpected map size {m.width}×{m.height}, this is likely a genie-scx bug.")
+            raise ValueError(f"Unexpected map size {m.width}x{m.height}, this is likely a genie-scx bug.")
 
         m.tiles = []
-        for _ in range(m.height):
-            for _ in range(m.width):
-                m.tiles.append(Tile.read_from(reader, m.version))
+        need_tiles = m.width * m.height
+        try:
+            for _ in range(m.height):
+                for _ in range(m.width):
+                    m.tiles.append(Tile.read_from(reader, m.version))
+        except EOFError as e:
+            raise ValueError(
+                f"Truncated scenario map data: declared {m.width}x{m.height} ({need_tiles} tiles) "
+                f"but only {len(m.tiles)} tiles could be read before end of stream ({e}). "
+                f"The file may be incomplete or corrupt."
+            ) from e
         return m
 
     def write_to(self, writer: BinaryIO, version: int) -> None:

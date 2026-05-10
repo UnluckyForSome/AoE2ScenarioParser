@@ -1,0 +1,3 @@
+# Release binaries copied here by build.ps1 / build.cmd (regenerate locally).
+genie_scx_bridge.exe
+genie_scx_bridge.pdb

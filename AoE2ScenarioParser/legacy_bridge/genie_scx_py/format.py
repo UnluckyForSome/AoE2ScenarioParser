@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import io
-from dataclasses import dataclass, field
+import struct
+from dataclasses import dataclass, field, replace
 from typing import BinaryIO, List, Optional, Tuple
 
 from ._io import BinaryReader, BinaryWriter, deflate_raw, inflate_raw
@@ -26,7 +27,22 @@ from .player import (
     WorldPlayerData,
 )
 from .triggers import TriggerSystem
-from .types import DiplomaticStance, SCXVersion, StartingAge, VersionBundle
+from .types import (
+    CannotDisableBuildingsError,
+    CannotDisableTechsError,
+    CannotDisableUnitsError,
+    DefinitiveEditionScenarioError,
+    DiplomaticStance,
+    SCXVersion,
+    StartingAge,
+    TooManyDisabledBuildingsError,
+    TooManyDisabledTechsError,
+    UnsupportedFormatVersionError,
+    VersionBundle,
+    is_ascii_scx_version_prefix,
+    is_definitive_edition_container_format,
+    is_definitive_edition_scenario_data_version,
+)
 from .victory import LegacyVictoryInfo, VictoryInfo
 from ._support.ids import UnitTypeID
 
@@ -158,9 +174,6 @@ class RGEScen:
         _old_time = r.read_f32()
         if _timeline_count != 0:
             raise ValueError("Unexpected RGE_Timeline")
-        if version >= 1.28:
-            for _ in range(16):
-                r.read_u32()
 
         name = read_u16_length_prefixed_str(reader) or ""
 
@@ -254,6 +267,7 @@ class RGEScen:
             for name in self.player_names:
                 padded = bytearray(256)
                 if name is not None:
+                    # Rust ``RGEScen::write_to``: UTF-8 ``str::as_bytes()`` into 256-byte slots (not CP1252).
                     nb = name.encode("utf-8", errors="replace")
                     padded[: len(nb)] = nb[:256]
                 w.write_bytes(bytes(padded))
@@ -271,9 +285,6 @@ class RGEScen:
         w.write_i16(0)
         w.write_i16(0)
         w.write_f32(-1.0)
-        if version >= 1.28:
-            for _ in range(16):
-                w.write_u32(0)
         write_str(writer, self.name)
         if version >= 1.16:
             _write_opt_string_key(writer, self.description_string_table)
@@ -314,6 +325,7 @@ class RGEScen:
             w.write_u32(len(files.city_plan) if files.city_plan else 0)
             if version >= 1.08:
                 w.write_u32(len(files.ai_rules) if files.ai_rules else 0)
+            # Raw payload lengths + UTF-8 bytes: matches Rust ``write_all(string.as_bytes())`` (not ``write_str``).
             if files.build_list:
                 w.write_bytes(files.build_list.encode("utf-8", errors="replace"))
             if files.city_plan:
@@ -355,10 +367,6 @@ class TribeScen:
     view: Tuple[int, int]
     map_type: Optional[int]
     base_priorities: List[int]
-    water_definition: Optional[str]
-    color_mood: Optional[str]
-    collide_and_correct: bool
-    villager_force_drop: bool
 
     @staticmethod
     def read_from(reader: BinaryIO) -> "TribeScen":
@@ -434,20 +442,7 @@ class TribeScen:
         num_disabled_buildings = [0] * 16
         disabled_buildings: List[List[int]] = [[] for _ in range(16)]
 
-        if version >= 1.28:
-            for i in range(16):
-                num_disabled_techs[i] = r.read_i32()
-            for i in range(16):
-                disabled_techs[i] = [r.read_i32() for _ in range(num_disabled_techs[i])]
-            for i in range(16):
-                num_disabled_units[i] = r.read_i32()
-            for i in range(16):
-                disabled_units[i] = [r.read_i32() for _ in range(num_disabled_units[i])]
-            for i in range(16):
-                num_disabled_buildings[i] = r.read_i32()
-            for i in range(16):
-                disabled_buildings[i] = [r.read_i32() for _ in range(num_disabled_buildings[i])]
-        elif version >= 1.18:
+        if version >= 1.18:
             num_disabled_techs = [r.read_i32() for _ in range(16)]
             disabled_techs = [[r.read_i32() for _ in range(30)] for _ in range(16)]
             num_disabled_units = [r.read_i32() for _ in range(16)]
@@ -490,23 +485,6 @@ class TribeScen:
         if version >= 1.24:
             base_priorities = [r.read_i8() for _ in range(16)]
 
-        water_definition = None
-        color_mood = None
-        collide_and_correct = False
-        villager_force_drop = False
-        if version >= 1.35:
-            _trigger_count = r.read_u32()
-        if version >= 1.30:
-            _sig = r.read_u16()
-            water_definition = read_u16_length_prefixed_str(reader)
-        if version >= 1.32:
-            _sig = r.read_u16()
-            color_mood = read_u16_length_prefixed_str(reader)
-        if version >= 1.36:
-            collide_and_correct = r.read_u8() != 0
-        if version >= 1.37:
-            villager_force_drop = r.read_u8() != 0
-
         return TribeScen(
             base=base,
             player_start_resources=player_start_resources,
@@ -535,13 +513,9 @@ class TribeScen:
             view=view,
             map_type=map_type,
             base_priorities=base_priorities,
-            water_definition=water_definition,
-            color_mood=color_mood,
-            collide_and_correct=collide_and_correct,
-            villager_force_drop=villager_force_drop,
         )
 
-    def write_to(self, writer: BinaryIO, version: float, num_triggers: int) -> None:
+    def write_to(self, writer: BinaryIO, version: float) -> None:
         # Note: For now, we implement only the exact write ordering used by the Rust crate.
         w = BinaryWriter(writer)
         self.base.write_to(writer, version)
@@ -549,6 +523,7 @@ class TribeScen:
             for name in self.base.player_names:
                 padded = bytearray(256)
                 if name is not None:
+                    # Rust: UTF-8 ``as_bytes()`` padding (read uses CP1252 ``read_str(256)`` — same as upstream).
                     nb = name.encode("utf-8", errors="replace")
                     padded[: len(nb)] = nb[:256]
                 w.write_bytes(bytes(padded))
@@ -587,24 +562,12 @@ class TribeScen:
         elif f32_eq(version, 1.23):
             w.write_i32(1 if self.teams_locked else 0)
 
-        if version >= 1.28:
-            for n in self.num_disabled_techs:
-                w.write_i32(n)
-            for player_disabled, n in zip(self.disabled_techs, self.num_disabled_techs):
-                for i in range(n):
-                    w.write_i32(player_disabled[i] if i < len(player_disabled) else -1)
-            for n in self.num_disabled_units:
-                w.write_i32(n)
-            for player_disabled, n in zip(self.disabled_units, self.num_disabled_units):
-                for i in range(n):
-                    w.write_i32(player_disabled[i] if i < len(player_disabled) else -1)
-            for n in self.num_disabled_buildings:
-                w.write_i32(n)
-            for player_disabled, n in zip(self.disabled_buildings, self.num_disabled_buildings):
-                for i in range(n):
-                    w.write_i32(player_disabled[i] if i < len(player_disabled) else -1)
-        elif version >= 1.18:
+        # Disabled techs/units/buildings — AoC/HD-era layout (matches genie-scx ``TribeScen`` write path).
+        if version >= 1.18:
             max_disabled_buildings = 30 if version >= 1.25 else 20
+            most_b = max(self.num_disabled_buildings) if self.num_disabled_buildings else 0
+            if most_b > max_disabled_buildings:
+                raise TooManyDisabledBuildingsError(most_b, max_disabled_buildings)
             for n in self.num_disabled_techs:
                 w.write_i32(n)
             for player_disabled in self.disabled_techs:
@@ -621,9 +584,23 @@ class TribeScen:
                 for i in range(max_disabled_buildings):
                     w.write_i32(player_disabled[i] if i < len(player_disabled) else -1)
         elif version > 1.03:
+            most_t = max(self.num_disabled_techs) if self.num_disabled_techs else 0
+            if most_t > 20:
+                raise TooManyDisabledTechsError(most_t)
+            if any(n > 0 for n in self.num_disabled_units):
+                raise CannotDisableUnitsError()
+            if any(n > 0 for n in self.num_disabled_buildings):
+                raise CannotDisableBuildingsError()
             for player_disabled in self.disabled_techs:
                 for i in range(20):
                     w.write_i32(player_disabled[i] if i < len(player_disabled) else -1)
+        else:
+            if any(n > 0 for n in self.num_disabled_techs):
+                raise CannotDisableTechsError()
+            if any(n > 0 for n in self.num_disabled_units):
+                raise CannotDisableUnitsError()
+            if any(n > 0 for n in self.num_disabled_buildings):
+                raise CannotDisableBuildingsError()
 
         if version > 1.04:
             w.write_i32(0)
@@ -643,17 +620,6 @@ class TribeScen:
         if version >= 1.24:
             for p in self.base_priorities:
                 w.write_i8(p)
-        if version >= 1.28:
-            w.write_u32(num_triggers)
-            w.write_u16(0)
-            write_opt_str(writer, self.water_definition)
-        if version >= 1.36:
-            w.write_u8(0)
-            w.write_u8(0)
-            write_opt_str(writer, self.color_mood)
-            w.write_u8(1 if self.collide_and_correct else 0)
-        if version >= 1.37:
-            w.write_u8(1 if self.villager_force_drop else 0)
 
     def version(self) -> float:
         return self.base.version
@@ -685,14 +651,20 @@ class SCXFormat:
     ai_info: Optional[AIInfo]
 
     def version_bundle(self) -> VersionBundle:
-        return VersionBundle(
+        """
+        Extract version bundle information from a parsed SCX file.
+
+        Matches ``genie-scx`` ``SCXFormat::version`` (Rust cannot name this ``version`` on a struct
+        that also has a ``version`` field; here we keep ``version_bundle`` to avoid clashing with
+        the :attr:`version` container token field). Unlisted fields use :meth:`VersionBundle.aoc`
+        defaults (``picture``, ``victory``, ``dlc_options``).
+        """
+        return replace(
+            VersionBundle.aoc(),
             format=self.version,
             header=self.header.version,
-            dlc_options=None,
             data=self.tribe_scen.version(),
-            picture=1,
-            victory=2.0,
-            triggers=self.triggers.version if self.triggers is not None else None,
+            triggers=None if self.triggers is None else float(self.triggers.version),
             map=self.map.version,
         )
 
@@ -701,6 +673,11 @@ class SCXFormat:
         header = SCXHeader.read_from(reader, version)
         compressed = reader.read()
         payload = inflate_raw(compressed)
+        if len(payload) < 8:
+            raise EOFError("scenario payload too short")
+        scenario_data_version = struct.unpack_from("<f", payload, 4)[0]
+        if is_definitive_edition_scenario_data_version(scenario_data_version):
+            raise DefinitiveEditionScenarioError(data_version=scenario_data_version)
         buf = io.BytesIO(payload)
         r = BinaryReader(buf)
         next_object_id = r.read_i32()
@@ -720,20 +697,24 @@ class SCXFormat:
 
         def read_player_objects() -> List[List[ScenarioObject]]:
             lists: List[List[ScenarioObject]] = []
-            for _ in range(num_players):
+            for pi in range(num_players):
                 num_objects = r.read_u32()
                 objs: List[ScenarioObject] = []
-                for _ in range(num_objects):
-                    objs.append(ScenarioObject.read_from(buf, version))
+                for oi in range(num_objects):
+                    try:
+                        objs.append(ScenarioObject.read_from(buf, version))
+                    except EOFError as err:
+                        raise ValueError(
+                            "Truncated scenario while reading placed objects "
+                            f"(player index {pi + 1}/{num_players}, "
+                            f"object {oi + 1}/{num_objects}). "
+                            "The file may be incomplete or corrupt."
+                        ) from err
                 lists.append(objs)
             return lists
 
-        if version >= SCXVersion(b"1.36"):
-            scenario_players = read_scenario_players()
-            player_objects = read_player_objects()
-        else:
-            player_objects = read_player_objects()
-            scenario_players = read_scenario_players()
+        player_objects = read_player_objects()
+        scenario_players = read_scenario_players()
 
         triggers = None if version < SCXVersion(b"1.14") else TriggerSystem.read_from(buf)
         ai_info = AIInfo.read_from(buf) if (version > SCXVersion(b"1.17") and version < SCXVersion(b"2.00")) else None
@@ -757,15 +738,21 @@ class SCXFormat:
         if header4 is None or len(header4) != 4:
             raise EOFError("missing format version")
         format_version = SCXVersion(header4)
+        if is_ascii_scx_version_prefix(header4) and is_definitive_edition_container_format(format_version):
+            raise DefinitiveEditionScenarioError(container_format=str(format_version))
         player_version = format_version.to_player_version()
         if player_version is None:
-            raise ValueError(f"unsupported format version {format_version!r}")
+            raise UnsupportedFormatVersionError(format_version)
         return SCXFormat.load_inner(format_version, player_version, reader)
 
     def write_to(self, writer: BinaryIO, version: VersionBundle) -> None:
+        if is_definitive_edition_container_format(version.format):
+            raise DefinitiveEditionScenarioError(container_format=str(version.format))
+        if is_definitive_edition_scenario_data_version(version.data):
+            raise DefinitiveEditionScenarioError(data_version=version.data)
         player_version = version.format.to_player_version()
         if player_version is None:
-            raise ValueError(f"unsupported format version {version.format!r}")
+            raise UnsupportedFormatVersionError(version.format)
         w = BinaryWriter(writer)
         w.write_bytes(version.format.as_bytes())
         self.header.write_to(writer, version.format, version.header)
@@ -773,28 +760,18 @@ class SCXFormat:
         payload_buf = io.BytesIO()
         pw = BinaryWriter(payload_buf)
         pw.write_i32(self.next_object_id)
-        num_triggers = self.triggers.num_triggers() if self.triggers is not None else 0
-        self.tribe_scen.write_to(payload_buf, version.data, num_triggers)
+        self.tribe_scen.write_to(payload_buf, version.data)
         self.map.write_to(payload_buf, version.map)
         pw.write_i32(len(self.player_objects))
         for wp in self.world_players:
             wp.write_to(payload_buf, player_version)
-        if version.format >= SCXVersion(b"1.36"):
-            pw.write_i32(len(self.scenario_players) + 1)
-            for sp in self.scenario_players:
-                sp.write_to(payload_buf, player_version, version.victory)
-            for objs in self.player_objects:
-                pw.write_i32(len(objs))
-                for obj in objs:
-                    obj.write_to(payload_buf, version.format)
-        else:
-            for objs in self.player_objects:
-                pw.write_i32(len(objs))
-                for obj in objs:
-                    obj.write_to(payload_buf, version.format)
-            pw.write_i32(len(self.scenario_players) + 1)
-            for sp in self.scenario_players:
-                sp.write_to(payload_buf, player_version, version.victory)
+        for objs in self.player_objects:
+            pw.write_i32(len(objs))
+            for obj in objs:
+                obj.write_to(payload_buf, version.format)
+        pw.write_i32(len(self.scenario_players) + 1)
+        for sp in self.scenario_players:
+            sp.write_to(payload_buf, player_version, version.victory)
 
         if version.format > SCXVersion(b"1.13"):
             triggers = self.triggers if self.triggers is not None else TriggerSystem.default()

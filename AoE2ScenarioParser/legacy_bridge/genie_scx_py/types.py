@@ -5,6 +5,94 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+# Scenario "data" version: first `f32` inside the compressed payload (after `next_object_id`).
+# Values >= this threshold match Definitive Edition scenario files; genie_scx_py rejects them at parse time.
+DEFINITIVE_EDITION_MIN_DATA_VERSION = 1.28
+
+
+class UnsupportedFormatVersionError(ValueError):
+    """
+    Raised when the four-byte container format token is not mapped by :meth:`SCXVersion.to_player_version`.
+
+    Mirrors ``genie-scx`` ``Error::UnsupportedFormatVersionError``.
+    """
+
+    def __init__(self, format_version: "SCXVersion") -> None:
+        self.format_version = format_version
+        super().__init__(f"unsupported format version {format_version!r}")
+
+
+class DefinitiveEditionScenarioError(ValueError):
+    """Raised when the file is treated as AoE II: DE (container token and/or scenario data version)."""
+
+    def __init__(
+        self,
+        *,
+        data_version: Optional[float] = None,
+        container_format: Optional[str] = None,
+    ) -> None:
+        bits: list[str] = []
+        if container_format is not None:
+            bits.append(f"container format {container_format}")
+        if data_version is not None:
+            bits.append(f"data version {float(data_version):g}")
+        suffix = f" ({', '.join(bits)})" if bits else ""
+        super().__init__(
+            f"It looks like you're trying to parse a Definitive Edition scenario{suffix}. "
+            "genie_scx_py only supports legacy Age of Empires II scenarios; try AoE2ScenarioParser instead."
+        )
+        self.data_version = data_version
+        self.container_format = container_format
+
+
+class TooManyDisabledTechsError(ValueError):
+    """Mirrors ``genie-scx`` ``Error::TooManyDisabledTechsError``."""
+
+    def __init__(self, count: int) -> None:
+        self.count = int(count)
+        super().__init__(
+            f"too many disabled techs: got {self.count}, but requested version supports up to 20"
+        )
+
+
+class CannotDisableTechsError(ValueError):
+    """Mirrors ``genie-scx`` ``Error::CannotDisableTechsError``."""
+
+    def __init__(self) -> None:
+        super().__init__("requested version does not support disabling techs")
+
+
+class CannotDisableUnitsError(ValueError):
+    """Mirrors ``genie-scx`` ``Error::CannotDisableUnitsError``."""
+
+    def __init__(self) -> None:
+        super().__init__("requested version does not support disabling units")
+
+
+class TooManyDisabledBuildingsError(ValueError):
+    """Mirrors ``genie-scx`` ``Error::TooManyDisabledBuildingsError``."""
+
+    def __init__(self, count: int, max_allowed: int) -> None:
+        self.count = int(count)
+        self.max_allowed = int(max_allowed)
+        super().__init__(
+            "too many disabled buildings: got {}, but requested version supports up to {}".format(
+                self.count, self.max_allowed
+            )
+        )
+
+
+class CannotDisableBuildingsError(ValueError):
+    """Mirrors ``genie-scx`` ``Error::CannotDisableBuildingsError``."""
+
+    def __init__(self) -> None:
+        super().__init__("requested version does not support disabling buildings")
+
+
+def is_definitive_edition_scenario_data_version(data: float) -> bool:
+    """True if ``data`` is the scenario payload version and indicates DE."""
+    return float(data) >= DEFINITIVE_EDITION_MIN_DATA_VERSION
+
 
 @dataclass(frozen=True, slots=True)
 class SCXVersion:
@@ -61,14 +149,17 @@ class SCXVersion:
 
     def to_player_version(self) -> Optional[float]:
         """
-        Map this **file format** token (first four bytes of the container) to genie-scx's internal
-        **player-layout** reader version (which branch of player structs to use).
+        Map this container token (first four bytes, ASCII ``d.dxx``) to genie-scx's **player-layout**
+        reader version (which branch of ``WorldPlayerData`` / ``ScenarioPlayerData`` to use).
 
-        This is unrelated to ``VersionBundle.header``, ``.data``, ``.triggers``, etc.—those are
-        separate version axes carried alongside the scenario. It also does **not** decide DE vs
-        legacy product policy; see :func:`is_definitive_edition_scenario_format` at parse boundaries.
+        This value is independent of ``VersionBundle.header``, ``.data``, ``.triggers``, and similar
+        axes. Whether to reject a file as Definitive Edition is handled separately by
+        :func:`is_definitive_edition_container_format` (container token vs. ``1.22``) and
+        :func:`is_definitive_edition_scenario_data_version` (payload ``f32`` vs. ``1.28``).
 
-        Mirrors ``genie-scx`` ``SCXVersion::to_player_version`` (including ``1.36`` / ``1.37`` → ``1.14``).
+        Mostly matches Rust ``SCXVersion::to_player_version``. This port additionally maps ``1.22``
+        to ``1.14`` because genie-scx's ``VersionBundle::is_hd_edition`` allows container ``1.22``,
+        but upstream ``to_player_version`` does not list it.
         """
         b = self.as_bytes()
         if b == b"1.07":
@@ -79,26 +170,32 @@ class SCXVersion:
             return 1.12
         if b in (b"1.18", b"1.19"):
             return 1.13
-        if b in (b"1.20", b"1.21", b"1.32", b"1.36", b"1.37"):
+        if b in (b"1.20", b"1.21", b"1.22"):
             return 1.14
         return None
 
 
-# First format version that genie_scx_py refuses to read (use AoE2ScenarioParser for DE / >= 1.35).
-MIN_DEFINITIVE_EDITION_FORMAT = SCXVersion(b"1.35")
+# Non-DE ASCII container ceiling: genie-scx `hd_edition` uses `1.21`, but cheekily allows 1.22 - maybe this is for expansions or userpatch/wololo. Either way, have copied the logic from genie-scx.
+LEGACY_MAX_CONTAINER_FORMAT_TOKEN = SCXVersion(b"1.22")
 
 
-class DefinitiveEditionScenarioError(ValueError):
-    """Raised when the 4-byte format token is >= 1.35 (Definitive Edition); use the main library parser."""
+def is_definitive_edition_container_format(format_version: SCXVersion) -> bool:
+    """
+    True if the container token is strictly newer than ``1.22``.
 
-    def __init__(self) -> None:
-        super().__init__(
-            "Appears to be Definitive Edition Scenario. Parse with AOE2ScenarioParser"
-        )
+    ``1.21`` / ``1.22`` stay on the legacy path (genie-scx HD signals); ``1.32``, ``1.57``, … are rejected here.
+    """
+
+    return format_version > LEGACY_MAX_CONTAINER_FORMAT_TOKEN
 
 
-def is_definitive_edition_scenario_format(v: SCXVersion) -> bool:
-    return v >= MIN_DEFINITIVE_EDITION_FORMAT
+def is_ascii_scx_version_prefix(prefix: bytes) -> bool:
+    """True if ``prefix`` looks like the fixed-width ASCII container token ``d.dxx`` (e.g. ``1.21``, ``1.57``)."""
+    if len(prefix) != 4:
+        return False
+    if prefix[1] != ord("."):
+        return False
+    return all(48 <= b <= 57 for b in (prefix[0], prefix[2], prefix[3]))
 
 
 def legacy_format_version_from_prefix(prefix: bytes) -> Optional[SCXVersion]:
@@ -106,18 +203,12 @@ def legacy_format_version_from_prefix(prefix: bytes) -> Optional[SCXVersion]:
     Interpret ``prefix`` as the first four bytes of a genie-scx scenario container.
 
     These files start with a fixed-width ASCII format token ``d.dxx`` (for example ``1.21``).
-    Returns ``SCXVersion`` only for tokens that :mod:`genie_scx_py` is willing to read
-    (legacy < 1.35 with a known :meth:`SCXVersion.to_player_version` mapping).
+    Returns ``SCXVersion`` only for tokens that have a :meth:`SCXVersion.to_player_version`
+    mapping (legacy containers at most ``1.22``; newer tokens are rejected elsewhere).
     """
-    if len(prefix) != 4:
-        return None
-    if prefix[1] != ord("."):
-        return None
-    if not all(48 <= b <= 57 for b in (prefix[0], prefix[2], prefix[3])):
+    if not is_ascii_scx_version_prefix(prefix):
         return None
     v = SCXVersion(prefix)
-    if is_definitive_edition_scenario_format(v):
-        return None
     return v if v.to_player_version() is not None else None
 
 
@@ -185,6 +276,9 @@ class ParseDLCPackageError(ValueError):
 
 
 class DLCPackage(Enum):
+    # Some HD scenarios saved before the .aoe2scenario format use 0 or 1 here.
+    LegacyDependencyCode0 = 0
+    LegacyDependencyCode1 = 1
     AgeOfKings = 2
     AgeOfConquerors = 3
     TheForgotten = 4
@@ -407,19 +501,6 @@ class VersionBundle:
             map=0,
         )
 
-    @staticmethod
-    def aoe2_de() -> "VersionBundle":
-        return VersionBundle(
-            format=SCXVersion(b"1.37"),
-            header=5,
-            dlc_options=1000,
-            data=1.37,
-            picture=3,
-            victory=2.0,
-            triggers=2.2,
-            map=2,
-        )
-
     def is_aok(self) -> bool:
         return self.format.as_bytes() in (b"1.18", b"1.19", b"1.20")
 
@@ -429,7 +510,3 @@ class VersionBundle:
     def is_hd_edition(self) -> bool:
         # Rust precedence: (format == 1.21) || ((format == 1.22) && data > 1.22)
         return (self.format == b"1.21") or (self.format == b"1.22" and self.data > 1.22)
-
-    def is_age2_de(self) -> bool:
-        return self.data >= 1.28
-

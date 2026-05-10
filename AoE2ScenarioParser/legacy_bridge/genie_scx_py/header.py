@@ -99,6 +99,7 @@ class SCXHeader:
 
         desc_bytes = bytearray()
         if self.description is not None:
+            # Rust ``SCXHeader::write_to``: ``description.as_bytes()`` + NUL (UTF-8); read uses CP1252 ``read_u32_length_prefixed_str``.
             desc_bytes.extend(self.description.encode("utf-8", errors="replace"))
         desc_bytes.append(0)
 

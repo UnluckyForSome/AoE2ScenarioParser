@@ -1,24 +1,35 @@
 from __future__ import annotations
 
+"""
+Length-prefixed scenario strings (``str16`` / ``str32`` / ``read_str``): **Windows-1252**, matching
+``genie-support`` / ``genie-scx`` (``encoding_rs::WINDOWS_1252``).
+
+Some fixed-size or raw blobs in the Rust crate still use ``str::as_bytes()`` (UTF-8) — see comments
+in ``format.py``, ``header.py``, and ``ai.py`` where UTF-8 is intentional for parity with Rust writes.
+"""
+
 import struct
 from dataclasses import dataclass
 from typing import BinaryIO, Optional
 
+# Same codec label Python uses for Windows code page 1252 (AoE scenario strings).
+CP1252 = "cp1252"
+
 
 class DecodeStringError(ValueError):
-    """Rust: DecodeStringError (lossy decode still can fail on structural issues)."""
+    """Rust: ``DecodeStringError`` (invalid structural content, e.g. HD-style opener)."""
 
 
 class EncodeStringError(ValueError):
-    """Rust: EncodeStringError."""
+    """Rust: ``EncodeStringError`` — character not representable in WINDOWS-1252."""
 
 
 class ReadStringError(Exception):
-    """Rust: ReadStringError enum (DecodeStringError | IoError)."""
+    """Rust: ``ReadStringError`` enum (DecodeStringError | IoError)."""
 
 
 class WriteStringError(Exception):
-    """Rust: WriteStringError enum (EncodeStringError | IoError)."""
+    """Rust: ``WriteStringError`` enum (EncodeStringError | IoError)."""
 
 
 def _read_exact(reader: BinaryIO, n: int) -> bytes:
@@ -28,17 +39,21 @@ def _read_exact(reader: BinaryIO, n: int) -> bytes:
     return b
 
 
-def _decode_cp1252_lossy(raw: bytes) -> str:
+def _decode_cp1252(raw: bytes) -> str:
+    """
+    Rust ``decode_str``: ``WINDOWS_1252.decode(bytes)`` — always succeeds for arbitrary bytes
+    (8-bit mapping). Python's ``cp1252`` codec likewise maps every byte to a Unicode scalar.
+    """
+
     if not raw:
         return ""
-    # Matches rust fix: WINDOWS_1252.decode(bytes) and ignore failure flag.
-    return raw.decode("cp1252", errors="replace")
+    return raw.decode(CP1252)
 
 
 def read_str(reader: BinaryIO, length: int) -> Optional[str]:
     """
-    Rust: ReadStringsExt::read_str(length)
-      - reads `length` bytes
+    Rust: ``ReadStringsExt::read_str(length)``
+      - reads ``length`` bytes
       - truncates at first NUL
       - returns None if bytes empty after truncation
     """
@@ -53,13 +68,12 @@ def read_str(reader: BinaryIO, length: int) -> Optional[str]:
         pass
     if len(raw) == 0:
         return None
-    return _decode_cp1252_lossy(bytes(raw))
+    return _decode_cp1252(bytes(raw))
 
 
 def read_u16_length_prefixed_str(reader: BinaryIO) -> Optional[str]:
     """
-    Rust: 0xFFFF => None; else read_str(len)
-    NOTE: Rust uses u16 for prefix but compares against 0xFFFF.
+    Rust: ``0xFFFF`` => None; else ``read_str(len)``
     """
 
     (length,) = struct.unpack("<H", _read_exact(reader, 2))
@@ -77,10 +91,10 @@ def read_u32_length_prefixed_str(reader: BinaryIO) -> Optional[str]:
 
 def read_hd_style_str(reader: BinaryIO) -> Optional[str]:
     """
-    Rust: ReadStringsExt::read_hd_style_str
-      - reads u16 'signature' and expects 0x0A60 else DecodeStringError
+    Rust: ``ReadStringsExt::read_hd_style_str``
+      - reads u16 'signature' and expects ``0x0A60`` else ``DecodeStringError``
       - reads u16 length
-      - reads length bytes and decodes (no NUL strip in Rust path)
+      - reads length bytes and decodes (no NUL strip on this path in Rust)
     """
 
     (open_sig,) = struct.unpack("<H", _read_exact(reader, 2))
@@ -88,24 +102,21 @@ def read_hd_style_str(reader: BinaryIO) -> Optional[str]:
         raise DecodeStringError("HD style string missing 0x0A60 opener")
     (length,) = struct.unpack("<H", _read_exact(reader, 2))
     raw = _read_exact(reader, int(length))
-    return _decode_cp1252_lossy(raw)
+    return _decode_cp1252(raw)
 
 
 def write_str(writer: BinaryIO, string: str) -> None:
     """
-    Rust: write_str:
-      - encode cp1252 (fails if cannot encode)
-      - write i16 length (bytes_len + 1) little-endian
-      - write bytes
-      - write NUL
+    Rust: ``write_str`` — WINDOWS-1252 encode (strict), ``i16`` length = byte len + 1 (incl. NUL),
+    bytes, NUL.
     """
 
     try:
-        encoded = string.encode("cp1252", errors="strict")
-    except Exception as e:
-        raise WriteStringError(EncodeStringError()) from e
+        encoded = string.encode(CP1252, errors="strict")
+    except UnicodeEncodeError as e:
+        raise EncodeStringError("could not encode string as WINDOWS-1252") from e
     if len(encoded) >= 0x7FFF:
-        raise WriteStringError("string too long for i16 length prefix")
+        raise EncodeStringError("string too long for i16 length prefix")
     writer.write(struct.pack("<h", len(encoded) + 1))
     writer.write(encoded)
     writer.write(b"\x00")
@@ -113,11 +124,11 @@ def write_str(writer: BinaryIO, string: str) -> None:
 
 def write_i32_str(writer: BinaryIO, string: str) -> None:
     try:
-        encoded = string.encode("cp1252", errors="strict")
-    except Exception as e:
-        raise WriteStringError(EncodeStringError()) from e
+        encoded = string.encode(CP1252, errors="strict")
+    except UnicodeEncodeError as e:
+        raise EncodeStringError("could not encode string as WINDOWS-1252") from e
     if len(encoded) >= 0x7FFF_FFFF:
-        raise WriteStringError("string too long for i32 length prefix")
+        raise EncodeStringError("string too long for i32 length prefix")
     writer.write(struct.pack("<i", len(encoded) + 1))
     writer.write(encoded)
     writer.write(b"\x00")
@@ -135,4 +146,3 @@ def write_opt_i32_str(writer: BinaryIO, value: Optional[str]) -> None:
         writer.write(struct.pack("<i", 0))
         return
     write_i32_str(writer, value)
-

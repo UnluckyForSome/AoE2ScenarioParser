@@ -1,0 +1,69 @@
+genie_scx_py parser validation report
+====================================
+Generated (UTC): 2026-05-09T17:07:11.079810+00:00
+Corpus root: C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug
+Recursive listing: False
+Scenario suffixes: .aoe2scenario, .scn, .scx, .scx2
+Candidates matching suffixes: 19
+Random sample limit (-n): (none — all files)
+Files parsed: 19
+Random seed (only if -n): None
+
+Summary
+-------
+  Parsed OK:           2
+  DE rejected (policy): 0
+  Parse errors:         17
+
+Per file (parse errors and DE rejected)
+---------------------------------------
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\(IGZ) Paintball.scx
+    EOFError: Unexpected EOF reading 54527 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\- +Epic Heros+ II ~[RPG] =Fixed=.scx
+    ValueError: Truncated scenario map data: declared 144x144 (20736 tiles) but only 1033 tiles could be read before end of stream (Unexpected EOF reading 1 bytes). The file may be incomplete or corrupt.
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\- Wonder Hold-8p-(Castle Fix).scn
+    EOFError: Unexpected EOF reading 4 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\-=- CBA -=- 2007 -=- + Booter.scn
+    EOFError: Unexpected EOF reading 200 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\-=-Vikings Blood-=-5-0-=-8p-=-.scn
+    ValueError: Truncated scenario map data: declared 120x120 (14400 tiles) but only 13200 tiles could be read before end of stream (Unexpected EOF reading 1 bytes). The file may be incomplete or corrupt.
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\Castle Blood II Auto-vNBv3.scx
+    EOFError: Unexpected EOF reading 157824 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\GRAVE_BLOOD.scx
+    error: Error -3 while decompressing data: invalid distance too far back
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\hoodz blood v2.scn
+    ValueError: Truncated scenario map data: declared 120x120 (14400 tiles) but only 13013 tiles could be read before end of stream (Unexpected EOF reading 1 bytes). The file may be incomplete or corrupt.
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\lJal2k ƒÊs+² tRy's ƒ¡ÑâL ƒ¡×.scn
+    EOFError: Unexpected EOF reading 4 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\magic blood 8 player (cb).scn
+    EOFError: Unexpected EOF reading 175 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\Morbid Angel's CBA.scn
+    ValueError: Truncated scenario map data: declared 144x144 (20736 tiles) but only 5119 tiles could be read before end of stream (Unexpected EOF reading 1 bytes). The file may be incomplete or corrupt.
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\Rambit TD (Y2,61)  Multi Xpert Version.scx
+    EOFError: Unexpected EOF reading 673215333 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\sOlDIeR AreNa.scn
+    EOFError: Unexpected EOF reading 4 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\STARSHIP TROOPERS - 4000 secs_fix3.scn
+    EOFError: Unexpected EOF reading 4 bytes
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\TURBO MACHINE BLOOD.scn
+    ValueError: Truncated scenario map data: declared 220x220 (48400 tiles) but only 31517 tiles could be read before end of stream (Unexpected EOF reading 1 bytes). The file may be incomplete or corrupt.
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\wb 2008.scn
+    ValueError: Truncated scenario map data: declared 144x144 (20736 tiles) but only 15615 tiles could be read before end of stream (Unexpected EOF reading 1 bytes). The file may be incomplete or corrupt.
+
+[ERROR] C:\Users\joemc\Github\Forks\AoE2ScenarioParser\AoE2ScenarioParser\legacy_bridge\workbench\parser_validation\corruptdebug\~ Roll The Dice ! ~ Gold V13.7.scx
+    EOFError: Unexpected EOF reading 822083583 bytes

@@ -1642,18 +1642,6 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         except Exception as e:
             warn(f"Unable to map Options section from legacy options export: {e}")
 
-        # Map section tail fields (DE2-era options)
-        try:
-            map_section = scenario.sections["Map"]
-            if getattr(tribe, "water_definition", None) is not None:
-                map_section.water_definition = str(tribe.water_definition)
-            if getattr(tribe, "color_mood", None) is not None:
-                scenario.map_manager.map_color_mood = str(tribe.color_mood)
-            if getattr(tribe, "collide_and_correct", None) is not None:
-                scenario.option_manager.collide_and_correct = bool(tribe.collide_and_correct)
-        except Exception as e:
-            warn(f"Unable to map Map tail options (water_definition/color_mood/collide): {e}")
-
     # ``OptionManager`` links villager_force_drop / lock_coop_alliances / secondary_game_modes to ``Map``
     # (Support since 1.37 / 1.42). Legacy SCX bits are not the same as DE-resaved defaults; pin DE norms so
     # rebuilt files match opened-and-saved references (and commit writes these via the manager).

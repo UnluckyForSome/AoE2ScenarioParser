@@ -58,7 +58,7 @@ class AIErrorInfo:
             pass
         if not b:
             return "<empty>"
-        # Rust fix: String::from_utf8_lossy
+        # Rust ``genie-scx`` ``ai.rs``: ``String::from_utf8_lossy`` (UTF-8), not WINDOWS-1252.
         return bytes(b).decode("utf-8", errors="replace")
 
     @staticmethod
@@ -80,6 +80,7 @@ class AIErrorInfo:
         )
 
     def write_to(self, writer: BinaryIO) -> None:
+        # Rust ``AIErrorInfo::write_to``: copies ``filename.as_bytes()`` / ``description.as_bytes()`` (UTF-8).
         w = BinaryWriter(writer)
         filename_bytes = bytearray(257)
         fb = self.filename.encode("utf-8", errors="replace")
