@@ -19,17 +19,6 @@ from AoE2ScenarioParser.helper.printers import warn
 from AoE2ScenarioParser.scenarios.aoe2_de_scenario import AoE2DEScenario
 
 
-def _ensure_genie_scx_py_submodule() -> None:
-    lb = Path(__file__).resolve().parent
-    boot = lb / "genie_scx_py_bootstrap.py"
-    spec = importlib.util.spec_from_file_location("legacy_bridge.genie_scx_py_bootstrap", boot)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load genie bootstrap from {boot}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    mod.ensure_genie_scx_py_on_path()
-
-
 def _load_bridge_mapping() -> object:
     """Load `bridge_mapping.py` as a module from disk (not installed as a package)."""
     mapping_path = Path(__file__).resolve().parent / "bridge_mapping.py"
@@ -49,7 +38,12 @@ def convert_legacy_to_de(
     old_print = settings.PRINT_STATUS_UPDATES
     settings.PRINT_STATUS_UPDATES = False
     try:
-        _ensure_genie_scx_py_submodule()
+        # Ensure package `genie_scx_py` is importable without installation (parent dir on path).
+        legacy_bridge_root = Path(__file__).resolve().parent
+        s = str(legacy_bridge_root)
+        if s not in sys.path:
+            sys.path.insert(0, s)
+
         from genie_scx_py import Scenario
 
         scen = Scenario.read_from_bytes(Path(input_path).read_bytes())
