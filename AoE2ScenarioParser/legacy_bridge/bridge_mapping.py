@@ -15,6 +15,9 @@ Data flow
 2. **Wireup**: `legacy_bridge/bridge_wireup.py` constructs ``AoE2DEScenario.from_default()``.
 3. **This module**: :func:`apply_legacy_scenario_to_de_scenario` copies fields onto the DE scenario.
 
+4. **Pinned non-genie defaults** (triggers / option manager): :mod:`AoE2ScenarioParser.legacy_bridge.conversion_policy`
+   and ``legacy_bridge/CONVERSION_POLICY.md``.
+
 Conversion is **best-effort**: preserve clean mappings, keep DE defaults when unclear, ``warn()`` instead of crashing.
 
 Mapping block format (guideline)
@@ -38,6 +41,11 @@ import struct
 from typing import Any, Dict, List
 
 from AoE2ScenarioParser.helper.printers import warn
+from AoE2ScenarioParser.legacy_bridge.conversion_policy import (
+    pin_legacy_trigger_execution_order,
+    pin_option_manager_de_map_norms,
+    pin_trigger_instruction_start,
+)
 from AoE2ScenarioParser.objects.data_objects.effect import Effect
 from AoE2ScenarioParser.scenarios.aoe2_de_scenario import AoE2DEScenario
 from AoE2ScenarioParser.sections.aoe2_file_section import AoE2FileSection
@@ -77,6 +85,26 @@ def _ai_str(v: Any) -> str:
     return str(v)
 
 
+def _files_ai_fallback_from_slots(names_in: List[Any], scripts_in: List[Any]) -> List[Dict[str, str]]:
+    """
+    When ``AIInfo.files`` is empty, still emit ``Files.ai_files`` rows for distinct RGEScen slot filenames
+    that carry script text (mirrors how embedded AI lists campaign ``.per`` chunks).
+    """
+    out: List[Dict[str, str]] = []
+    seen_fn: set[str] = set()
+    for i in range(16):
+        sc = scripts_in[i] if i < len(scripts_in) else None
+        if not _ai_str(sc).strip():
+            continue
+        nm = names_in[i] if i < len(names_in) else None
+        fn = _ai_str(nm).strip() or f"legacy_ai_{i}.per"
+        if fn in seen_fn:
+            continue
+        seen_fn.add(fn)
+        out.append({"filename": fn, "content": _ai_str(sc)})
+    return out
+
+
 def _apply_legacy_ai_embedded(scen: Any, scenario: AoE2DEScenario) -> None:
     """Map RGEScen per-player AI + AIInfo embedded files into DE ``PlayerDataTwo`` and ``Files``."""
     try:
@@ -93,13 +121,17 @@ def _apply_legacy_ai_embedded(scen: Any, scenario: AoE2DEScenario) -> None:
         scripts_in = []
         types_in = []
 
-    embedded = []
+    ai_info = None
     try:
         ai_info = scen.format.ai_info
-        if ai_info is not None:
-            embedded = [{"filename": f.filename, "content": f.content} for f in ai_info.files]
     except Exception:
-        embedded = []
+        ai_info = None
+
+    embedded: List[Dict[str, str]] = []
+    if ai_info is not None:
+        embedded = [{"filename": f.filename, "content": f.content} for f in ai_info.files]
+
+    files_payload = embedded if embedded else _files_ai_fallback_from_slots(names_in, scripts_in)
 
     try:
         pd2 = scenario.sections["PlayerDataTwo"]
@@ -129,19 +161,36 @@ def _apply_legacy_ai_embedded(scen: Any, scenario: AoE2DEScenario) -> None:
         gaia_pl.ai_type = ai_type[8]
 
         fs = scenario.sections["Files"]
-        model = fs.find_struct_model_by_retriever(fs.retriever_map["ai_files"])
+        ai2_model = fs.find_struct_model_by_retriever(fs.retriever_map["ai_files"])
         entries: List[AoE2FileSection] = []
-        if isinstance(embedded, list):
-            for item in embedded:
-                if not isinstance(item, dict):
-                    continue
-                sec = AoE2FileSection.from_model(model, scenario.uuid, set_defaults=True)
-                sec.ai_file_name = _ai_str(item.get("filename"))
-                sec.ai_file = _ai_str(item.get("content"))
-                entries.append(sec)
+        for item in files_payload:
+            if not isinstance(item, dict):
+                continue
+            sec = AoE2FileSection.from_model(ai2_model, scenario.uuid, set_defaults=True)
+            sec.ai_file_name = _ai_str(item.get("filename"))
+            sec.ai_file = _ai_str(item.get("content"))
+            entries.append(sec)
         fs.ai_files = entries
         fs.number_of_ai_files = int(len(entries))
         fs.ai_files_present = 1 if entries else 0
+
+        # Legacy AIInfo optional compiler diagnostic — maps to DE ``Files.ai_error`` (struct AIError).
+        legacy_err = getattr(ai_info, "error", None) if ai_info is not None else None
+        if legacy_err is not None:
+            err_model = fs.find_struct_model_by_retriever(fs.retriever_map["ai_error"])
+            err_sec = AoE2FileSection.from_model(err_model, scenario.uuid, set_defaults=True)
+            err_sec.ai_file = _ai_str(getattr(legacy_err, "filename", ""))[:259]
+            err_sec.line_number = int(getattr(legacy_err, "line_number", 0))
+            err_sec.message = _ai_str(getattr(legacy_err, "description", ""))[:127]
+            try:
+                err_sec.error_code = int(getattr(legacy_err, "error_code", 0))
+            except (TypeError, ValueError):
+                err_sec.error_code = 0
+            fs.ai_error_present = 1
+            fs.ai_error = [err_sec]
+        else:
+            fs.ai_error_present = 0
+            fs.ai_error = []
     except Exception as e:
         warn(f"Unable to map legacy AI scripts into Files / PlayerDataTwo: {e}")
 
@@ -338,6 +387,7 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
                 cin.ascii_loss = str(base.loss_cinematic)
 
             # Player names / civs / types from RGEScen (used by DE to populate player metadata).
+            # Later ``scenario_players`` may fill ``tribe_name`` only when still empty (RGEScen wins).
             try:
                 player_names = list(getattr(base, "player_names", []) or [])
                 if len(player_names) >= 16:
@@ -483,22 +533,8 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
 
             _ = getattr(trig_sys, "version", None)
 
-            # ============================================================
-            # FIELD: Triggers.trigger_instruction_start
-            # ============================================================
-            # Source:
-            # SOURCE TYPE: DE_DEFAULT (pinned)
-            #
-            # Explanation:
-            # DE-resaved workbench references use 0 here; keep consistent.
-            #
-            # Output:
-            #   scenario.sections["Triggers"].trigger_instruction_start
-
-            try:
-                trig_section.trigger_instruction_start = 0
-            except Exception:
-                pass
+            # FIELD: Triggers.trigger_instruction_start → :func:`conversion_policy.pin_trigger_instruction_start`
+            pin_trigger_instruction_start(trig_section)
 
             tm = scenario.trigger_manager
 
@@ -1474,13 +1510,7 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         except Exception as e:
             warn(f"Unable to map legacy triggers: {e}")
 
-    # AoK/AoC scenarios use legacy trigger evaluation order; DE exposes this as `Triggers.legacy_exec_order` (u8).
-    # Editor-resaved references keep this set to 1; `from_default()` leaves 0.
-    try:
-        scenario.sections["Triggers"].legacy_exec_order = 1
-        scenario.option_manager.legacy_execution_order = True
-    except Exception as e:
-        warn(f"Unable to set legacy trigger execution order (Triggers.legacy_exec_order): {e}")
+    pin_legacy_trigger_execution_order(scenario)
 
     # ============================================================
     # FIELD: VictoryConditions (GlobalVictory / individual_victories)
@@ -1642,16 +1672,7 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         except Exception as e:
             warn(f"Unable to map Options section from legacy options export: {e}")
 
-    # ``OptionManager`` links villager_force_drop / lock_coop_alliances / secondary_game_modes to ``Map``
-    # (Support since 1.37 / 1.42). Legacy SCX bits are not the same as DE-resaved defaults; pin DE norms so
-    # rebuilt files match opened-and-saved references (and commit writes these via the manager).
-    try:
-        om = scenario.option_manager
-        om.villager_force_drop = True
-        om.lock_coop_alliances = False
-        om.secondary_game_modes = 0
-    except Exception as e:
-        warn(f"Unable to set DE Map option defaults (villager_force_drop / lock_coop_alliances / secondary_game_modes): {e}")
+    pin_option_manager_de_map_norms(scenario)
 
     # TribeScen.options.view is not applied as a blanket editor camera: DE-resaved scenarios derive
     # ``Units.player_data_3`` cameras from per-player ScenarioPlayerData (view + location), not from global view.
@@ -1705,6 +1726,17 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         except Exception as e:
             warn(f"Unable to map legacy world player resources: {e}")
 
+    # RGEScen ``player_base_properties.active`` (needed before scenario_players so inactive slots do not
+    # receive ``ScenarioPlayerData.name`` placeholders like ``Player 5``; DE-resaved refs keep those empty).
+    active_by_pid: Dict[int, int] = {}
+    try:
+        if tribe is not None:
+            base_props = list(getattr(tribe.base, "player_base_properties", []) or [])
+            for pid, bp in enumerate(base_props[:16], start=1):
+                active_by_pid[pid] = int(getattr(bp, "active", 0) or 0)
+    except Exception:
+        active_by_pid = {}
+
     # Scenario players -> names, diplomacy, initial views
     try:
         scenario_players = list(scen.scenario_players())
@@ -1716,9 +1748,10 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
             pid = idx
             p = scenario.player_manager.players[pid]
 
-            name = getattr(sp, "name", None)
-            if name:
-                p.tribe_name = str(name)
+            if active_by_pid.get(pid, 1) != 0:
+                name = getattr(sp, "name", None)
+                if name and not (getattr(p, "tribe_name", None) or "").strip():
+                    p.tribe_name = str(name)
 
             p.allied_victory = 1 if bool(getattr(sp, "allied_victory", False)) else 0
 
@@ -1758,6 +1791,13 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         except Exception as e:
             warn(f"Unable to map legacy scenario player data: {e}")
 
+    for pid in range(1, 9):
+        if active_by_pid.get(pid, 1) == 0:
+            try:
+                scenario.player_manager.players[pid].tribe_name = ""
+            except Exception:
+                pass
+
     # Match DE-resaved old/new pairs for map population caps, and for initial views when the legacy
     # file provides an editor "view" in the raw export.
     try:
@@ -1776,16 +1816,6 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         scenario.sections["Map"].per_player_population_cap = [200] * 16
     except Exception as e:
         warn(f"Unable to set Map.per_player_population_cap to 200s: {e}")
-
-    # RGEScen player_base_properties.active (1..16): used for starting ages and for editor slot 0 rule.
-    active_by_pid: Dict[int, int] = {}
-    try:
-        if tribe is not None:
-            base_props = list(getattr(tribe.base, "player_base_properties", []) or [])
-            for pid, bp in enumerate(base_props[:16], start=1):
-                active_by_pid[pid] = int(getattr(bp, "active", 0) or 0)
-    except Exception:
-        active_by_pid = {}
 
     # Ensure Options.per_player_starting_age is fully 16-length (including slots 9-16).
     try:
@@ -1866,15 +1896,15 @@ def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) ->
         warn(f"Unable to map Units.player_data_3 editor/initial cameras from scenario_players: {e}")
 
     # ============================================================
-    # FIELD: Embedded AI (PlayerDataTwo + Files.ai_files)
+    # FIELD: Embedded AI (PlayerDataTwo + Files.ai_files / Files.ai_error)
     # ============================================================
     # Source:
     # SOURCE TYPE: GENIE_SCX_PY
-    # genie-scx: payload.raw.legacy_ai
+    # genie-scx: TribeScen player AI slots + optional ``AIInfo`` (embedded ``AIFile`` list + optional ``AIErrorInfo``)
     #
     # Explanation:
-    # Legacy AI frequently differs structurally vs DE-resaved references. We still map the embedded
-    # scripts for functional parity; diff noise is handled by ignore policy.
+    # ``Files.ai_files`` uses ``AIInfo.files`` when present; otherwise distinct RGEScen slot scripts
+    # (filename + ``player_files`` ai_rules text). ``Files.ai_error`` is filled when ``AIInfo.error`` exists.
     #
     # Outputs:
     #   scenario.sections["PlayerDataTwo"], scenario.sections["Files"], scenario.player_manager.players[*]

@@ -1,90 +1,63 @@
 genie_scx_py parser validation report
 ====================================
-Generated (UTC): 2026-05-09T15:56:57.720447+00:00
+Generated (UTC): 2026-05-10T14:38:10.056791+00:00
 Corpus root: \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live
 Recursive listing: True
 Scenario suffixes: .aoe2scenario, .scn, .scx, .scx2
-Candidates matching suffixes: 3345
-Random sample limit (-n): (none — all files)
-Files parsed: 3345
+Candidates matching suffixes: 3328
+Random sample limit (-n): (none - all files)
+Files parsed: 3328
 Random seed (only if -n): None
 
 Summary
 -------
-  Parsed OK:           3321
-  DE rejected (policy): 3
-  Parse errors:         21
+  Parsed OK:           3323
+  DE rejected (policy): 5
+  Parse errors:         0
 
-Per file (parse errors and DE rejected)
----------------------------------------
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\(IGZ) Paintball.scx
-    EOFError: Unexpected EOF reading 54527 bytes
+Key metrics (aggregated)
+------------------------
+Successful parses - scenario format (SCX container token):
+  1.07: 1
+  1.10: 1
+  1.11: 5
+  1.18: 1689
+  1.21: 1627
+Successful parses - data version (payload):
+  1.06: 1
+  1.15: 6
+  1.2: 1689
+  1.22: 1601
+  1.23: 1
+  1.26: 25
+Successful parses - header_version:
+  1: 1
+  2: 3298
+  3: 24
+Successful parses - trigger_version (VersionBundle):
+  1.6: 3316
+  none: 7
+Successful parses - map_payload_version:
+  0: 3323
+Successful parses - victory_version:
+  2: 3323
+Successful parses - picture_version:
+  1: 3323
+Successful parses - dlc_options:
+  none: 3323
+By file suffix (all files in run):
+  .aoe2scenario: 26
+  .scn: 1693
+  .scx: 1608
+  .scx2: 1
+DE rejected - by data_version (when reported):
+  (none)
+DE rejected - by container_format (when reported):
+  1.35: 1
+  1.36: 1
+  1.37: 1
+  1.57: 2
 
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\- +Epic Heros+ II ~[RPG] =Fixed=.scx
-    EOFError: Unexpected EOF reading 1 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\- Wonder Hold-8p-(Castle Fix).scn
-    EOFError: Unexpected EOF reading 4 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\-=- CBA -=- 2007 -=- + Booter.scn
-    EOFError: Unexpected EOF reading 200 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\-=-Vikings Blood-=-5-0-=-8p-=-.scn
-    EOFError: Unexpected EOF reading 1 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\Castle Blood II Auto-vNBv3.scx
-    EOFError: Unexpected EOF reading 157824 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\DE e3-p2-default.aoe2scenario
-    ParseDLCPackageError: unknown dlc package 8
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\DE Subs.aoe2scenario
-    ParseDLCPackageError: unknown dlc package 8
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\GRAVE_BLOOD.scx
-    error: Error -3 while decompressing data: invalid distance too far back
-
-[DE_REJECTED] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\HD 0_E3_Scenario.aoe2scenario
-    It looks like you're trying to parse a Definitive Edition scenario (data version 1.35). genie_scx_py only supports legacy Age of Empires II scenarios; try AoE2ScenarioParser instead.
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\hoodz blood v2.scn
-    EOFError: Unexpected EOF reading 1 bytes
-
-[DE_REJECTED] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\Hotkey Trainer Buildings.aoe2scenario
-    It looks like you're trying to parse a Definitive Edition scenario (data version 1.36). genie_scx_py only supports legacy Age of Empires II scenarios; try AoE2ScenarioParser instead.
-
-[DE_REJECTED] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\layertest.aoe2scenario
-    It looks like you're trying to parse a Definitive Edition scenario (data version 1.37). genie_scx_py only supports legacy Age of Empires II scenarios; try AoE2ScenarioParser instead.
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\lJal2k ƒÊs+² tRy's ƒ¡ÑâL ƒ¡×.scn
-    EOFError: Unexpected EOF reading 4 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\magic blood 8 player (cb).scn
-    EOFError: Unexpected EOF reading 175 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\Morbid Angel's CBA.scn
-    EOFError: Unexpected EOF reading 1 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\Rambit TD (Y2,61)  Multi Xpert Version.scx
-    EOFError: Unexpected EOF reading 673215333 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\SEA OF THIEVES v 1.0.aoe2scenario
-    ParseDLCPackageError: unknown dlc package 0
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\sOlDIeR AreNa.scn
-    EOFError: Unexpected EOF reading 4 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\STARSHIP TROOPERS - 4000 secs_fix3.scn
-    EOFError: Unexpected EOF reading 4 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\Tiny Blood HD (1,2).scx
-    ParseDLCPackageError: unknown dlc package 0
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\TURBO MACHINE BLOOD.scn
-    EOFError: Unexpected EOF reading 1 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\wb 2008.scn
-    EOFError: Unexpected EOF reading 1 bytes
-
-[ERROR] \\DSM.lan\home\AOE2\AOE2 Archive Project\Custom Scenarios\Live\~ Roll The Dice ! ~ Gold V13.7.scx
-    EOFError: Unexpected EOF reading 822083583 bytes
+Per file (parse errors only; DE rejected counted above)
+-------------------------------------------------------
+(none)

@@ -27,6 +27,11 @@ from AoE2ScenarioParser.scenarios.scenario_debug.compare import debug_compare
 #
 # POLICY: remove unstable/non-semantic churn so remaining diffs are actionable mapping issues.
 # Rationale is kept inline next to each ignored path/pattern below.
+#
+# Messages string-table ID fields are ignored (bridge uses sentinels vs DE).
+# Messages ascii_* bodies are ignored: legacy inline vs DE empty/ST-backed; scouts string-id hydration differs.
+# DataHeader tribe_names: legacy/RGEScen spelling vs DE localization (e.g. singular/plural).
+# Files.ai_files: DE renames scripts (.per2), reorders list vs embedded legacy — not parity signal for this workbench.
 
 # Ignored (prefix, case-insensitive)
 IGNORED_PREFIXES: tuple[str, ...] = (
@@ -38,30 +43,29 @@ IGNORED_PREFIXES: tuple[str, ...] = (
     "FileHeader > scenario_instructions",  # DE often rewrites long-form instructions on open/resave
     "DataHeader > next_unit_id_to_place",  # placeholder; not meaningful for parity tracking
 
-    # Opaque fixed-width tail bytes; DE/editor differs after open/resave vs bridge-from-default.
-    "DataHeader > unknown",
+    "DataHeader > unknown",  # Opaque fixed-width tail bytes; DE/editor differs after open/resave vs bridge-from-default.
     "DataHeader > filename",  # rebuilt uses legacy stem; reference uses resaved name
-    "DataHeader > string_table_player_names",  # legacy string-table IDs don't match DE
-    "DataHeader > tribe_names",  # DE resave resolves tribe names differently
-    "Messages >",  # message IDs/rows churn across versions/editors
-    "Cinematics >",  # same churn for cinematic hooks
-    "Files > ai_files",  # legacy AI structure differs vs DE resave
-    "Files > number_of_ai_files",  # derived count for ai_files
-    "Files > ai_files_present",  # derived flag for ai_files
-    
-    # DE resaves sometimes materialize an AI error entry; rebuilt legacy output treats as absent.
-    "Files > ai_error_present",
-    "Files > ai_error",
+    "DataHeader > string_table_player_names",  # legacy string-table IDs don't match DE; bridge uses sentinels
+    "DataHeader > tribe_names",  # RGEScen vs DE campaign wording (e.g. Envoy/Envoys); expected
+
+    # Messages: string-table IDs ignored below; ascii_* bodies ignored (legacy inline vs DE ref style).
+    "Messages > ascii_",  # instructions/hints/scouts/…; scouts wrong-string-id cemented on save vs DE
+    "Messages > instructions",  # DE ST id for brief; legacy had description_string_table + inline description
+    "Messages > hints",  # DE ST id for hints; legacy had hints_string_table + inline hints
+    "Messages > victory",  # DE ST id; legacy win_message_string_table + win_message (often empty)
+    "Messages > loss",  # DE ST id; legacy loss_message_string_table + loss_message
+    "Messages > history",  # DE ST id; legacy history_string_table + history
+    "Messages > scouts",  # DE ST id; legacy scout_string_table + scout (≥1.22)
+
+    "Files > ai_files",  # DE display names (.per2), order vs legacy embedded AIInfo
     "Units > players_units > players_units[0] > unit_count",  # GAIA unit list churn vs DE-resaved refs
     "Units > players_units > players_units[0] > units",  # GAIA unit list churn vs DE-resaved refs
 )
 
 # Ignored (substring, case-insensitive):
 IGNORED_SUBSTRINGS: tuple[str, ...] = (
-    # PlayerDataTwo.resources row churn vs DE (includes legacy ore vs ore_x_unused editor hydration).
-    "playerdatatwo > resources >",
-    # Units.player_data_4 duplicate ore mirror slot vs DE resave.
-    " > ore_x_duplicate",
+    "playerdatatwo > resources >",  # PlayerDataTwo.resources row churn vs DE (includes legacy ore vs ore_x_unused editor hydration).
+    " > ore_x_duplicate",  # Units.player_data_4 duplicate ore mirror slot vs DE resave.
     "string_table",  # legacy string-table IDs don't match DE
     "_stid",  # string-table IDs don't match DE
     "short_description_string_table_id",  # string-table IDs don't match DE
