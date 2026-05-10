@@ -23,18 +23,6 @@ from typing import Iterable, Literal
 _SCENARIO_SUFFIXES = frozenset({".scn", ".scx", ".aoe2scenario", ".scx2"})
 
 
-def _legacy_bridge_root() -> Path:
-    # .../legacy_bridge/workbench/parser_validation/parser_validation.py → parents[2] == legacy_bridge
-    return Path(__file__).resolve().parents[2]
-
-
-def _ensure_genie_scx_py_on_path() -> None:
-    root = _legacy_bridge_root()
-    s = str(root)
-    if s not in sys.path:
-        sys.path.insert(0, s)
-
-
 def _iter_scenario_files(root: Path, recursive: bool) -> Iterable[Path]:
     it = root.rglob("*") if recursive else root.iterdir()
     for p in it:
@@ -186,8 +174,6 @@ def main() -> int:
             random.seed(args.seed)
         k = min(args.count, n_cand)
         files_run = random.sample(candidates, k=k)
-
-    _ensure_genie_scx_py_on_path()
 
     outcomes: list[ParseOutcome] = []
     for i, path in enumerate(files_run, start=1):

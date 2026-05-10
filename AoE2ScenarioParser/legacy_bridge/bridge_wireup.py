@@ -38,12 +38,6 @@ def convert_legacy_to_de(
     old_print = settings.PRINT_STATUS_UPDATES
     settings.PRINT_STATUS_UPDATES = False
     try:
-        # Ensure package `genie_scx_py` is importable without installation (parent dir on path).
-        legacy_bridge_root = Path(__file__).resolve().parent
-        s = str(legacy_bridge_root)
-        if s not in sys.path:
-            sys.path.insert(0, s)
-
         from genie_scx_py import Scenario
 
         scen = Scenario.read_from_bytes(Path(input_path).read_bytes())
