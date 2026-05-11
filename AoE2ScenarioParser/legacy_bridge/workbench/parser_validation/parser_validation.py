@@ -20,6 +20,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Literal
 
+from AoE2ScenarioParser.scenario_detection import ScenarioEdition, detect_scenario_edition
+from AoE2ScenarioParser.scenario_parsing import parse_legacy_scenario
+
 _SCENARIO_SUFFIXES = frozenset({".scn", ".scx", ".aoe2scenario", ".scx2"})
 
 
@@ -41,15 +44,17 @@ class ParseOutcome:
 
 
 def _parse_one(path: Path, *, full_tracebacks: bool) -> ParseOutcome:
-    from aoe2_mcgeniescx.scenario import Scenario  # type: ignore[import-not-found]
-    from aoe2_mcgeniescx.types import DefinitiveEditionScenarioError  # type: ignore[import-not-found]
-
     try:
-        with path.open("rb") as f:
-            Scenario.read_from(f)
+        detection = detect_scenario_edition(path)
+        if detection.edition == ScenarioEdition.DEFINITIVE:
+            detail = detection.reason or "rejected by DE detection policy"
+            if detection.container_format is not None:
+                detail = f"{detail} (container format {detection.container_format})"
+            if detection.data_version is not None:
+                detail = f"{detail} (data version {detection.data_version:g})"
+            return ParseOutcome(str(path), "de_rejected", detail)
+        parse_legacy_scenario(path)
         return ParseOutcome(str(path), "ok", "")
-    except DefinitiveEditionScenarioError as e:
-        return ParseOutcome(str(path), "de_rejected", str(e))
     except Exception as e:
         msg = f"{type(e).__name__}: {e}"
         if full_tracebacks:

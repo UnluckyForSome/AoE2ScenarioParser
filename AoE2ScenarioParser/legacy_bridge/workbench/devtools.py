@@ -16,6 +16,9 @@ import io
 import sys
 from pathlib import Path
 
+from AoE2ScenarioParser.scenario_detection import ScenarioEdition, detect_scenario_edition
+from AoE2ScenarioParser.scenario_parsing import parse_legacy_scenario
+
 
 def _legacy_bridge_root() -> Path:
     # .../legacy_bridge/workbench/devtools.py → parents[1] == legacy_bridge
@@ -35,9 +38,6 @@ _SKIP_PARSE_NAMES = frozenset({"corlis.aoescn", "original aok - joan 6.scn"})
 
 def cmd_parse_diffchecks() -> int:
     """Parse every legacy container file under ``workbench/diffchecks/*/inputs``."""
-    from aoe2_mcgeniescx.scenario import Scenario  # type: ignore[import-not-found]
-    from aoe2_mcgeniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
-
     root = _diffchecks_root()
     files: list[Path] = []
     for p in root.rglob("inputs/*"):
@@ -45,7 +45,7 @@ def cmd_parse_diffchecks() -> int:
             continue
         if p.name.lower() in _SKIP_PARSE_NAMES:
             continue
-        if legacy_format_version_peek_path(p) is None:
+        if detect_scenario_edition(p).edition != ScenarioEdition.LEGACY:
             continue
         files.append(p)
 
@@ -57,8 +57,7 @@ def cmd_parse_diffchecks() -> int:
     failures: list[tuple[str, str]] = []
     for path in files:
         try:
-            with path.open("rb") as f:
-                Scenario.read_from(f)
+            parse_legacy_scenario(path)
             print(f"OK {path.relative_to(root)}")
         except Exception as e:
             err = f"{type(e).__name__}: {e}"
@@ -74,16 +73,13 @@ def cmd_parse_diffchecks() -> int:
 
 def cmd_smoke_smallsample() -> int:
     """Parse ``legacy_de_pairs_smallsample`` legacy files and assert basic structural invariants."""
-    from aoe2_mcgeniescx import Scenario  # type: ignore[import-not-found]
-    from aoe2_mcgeniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
-
     sample_dir = _smallsample_inputs()
     if not sample_dir.is_dir():
         print(f"Missing directory: {sample_dir}", file=sys.stderr)
         return 1
 
     paths = sorted(
-        p for p in sample_dir.iterdir() if p.is_file() and legacy_format_version_peek_path(p) is not None
+        p for p in sample_dir.iterdir() if p.is_file() and detect_scenario_edition(p).edition == ScenarioEdition.LEGACY
     )
     if not paths:
         print(f"No legacy scenario headers in {sample_dir}", file=sys.stderr)
@@ -92,7 +88,7 @@ def cmd_smoke_smallsample() -> int:
     errors: list[str] = []
     for path in paths:
         try:
-            scen = Scenario.read_from_bytes(path.read_bytes())
+            scen = parse_legacy_scenario(path)
             fmt = scen.format
             fe: list[str] = []
             if fmt.header is None:
@@ -136,16 +132,13 @@ def cmd_smoke_smallsample() -> int:
 
 def cmd_round_trip_smallsample() -> int:
     """Read/write/read smallsample legacy files; compare format + header version."""
-    from aoe2_mcgeniescx.scenario import Scenario  # type: ignore[import-not-found]
-    from aoe2_mcgeniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
-
     sample_dir = _smallsample_inputs()
     if not sample_dir.is_dir():
         print(f"Missing directory: {sample_dir}", file=sys.stderr)
         return 1
 
     paths = sorted(
-        p for p in sample_dir.iterdir() if p.is_file() and legacy_format_version_peek_path(p) is not None
+        p for p in sample_dir.iterdir() if p.is_file() and detect_scenario_edition(p).edition == ScenarioEdition.LEGACY
     )
     if not paths:
         print(f"No legacy scenario headers in {sample_dir}", file=sys.stderr)
@@ -155,10 +148,10 @@ def cmd_round_trip_smallsample() -> int:
     for path in paths:
         try:
             data = path.read_bytes()
-            scen = Scenario.read_from(io.BytesIO(data))
+            scen = parse_legacy_scenario(io.BytesIO(data))
             out = io.BytesIO()
             scen.write_to(out)
-            scen2 = Scenario.read_from(io.BytesIO(out.getvalue()))
+            scen2 = parse_legacy_scenario(io.BytesIO(out.getvalue()))
             bad: list[str] = []
             if str(scen.version().format) != str(scen2.version().format):
                 bad.append("format version mismatch")

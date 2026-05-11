@@ -16,6 +16,8 @@ from pathlib import Path
 
 from AoE2ScenarioParser import settings
 from AoE2ScenarioParser.helper.printers import warn
+from AoE2ScenarioParser.scenario_detection import ScenarioEdition
+from AoE2ScenarioParser.scenario_parsing import parse_scenario
 from AoE2ScenarioParser.scenarios.aoe2_de_scenario import AoE2DEScenario
 
 
@@ -38,9 +40,10 @@ def convert_legacy_to_de(
     old_print = settings.PRINT_STATUS_UPDATES
     settings.PRINT_STATUS_UPDATES = False
     try:
-        from aoe2_mcgeniescx import Scenario
-
-        scen = Scenario.read_from_bytes(Path(input_path).read_bytes())
+        parsed = parse_scenario(input_path, suppress_output=True)
+        if parsed.edition != ScenarioEdition.LEGACY:
+            raise ValueError("convert_legacy_to_de expects a legacy scenario container, not a Definitive Edition scenario")
+        scen = parsed.scenario
         scenario = AoE2DEScenario.from_default()
         mapping = _load_bridge_mapping()
         apply = getattr(mapping, "apply_legacy_scenario_to_de_scenario", None)
