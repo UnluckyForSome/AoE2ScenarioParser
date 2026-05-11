@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 """
-Legacy scenario (`aoe2_geniescx.Scenario`) → DE ``AoE2DEScenario`` mapping.
+Legacy scenario (`aoe2_mcgeniescx.Scenario`) → DE ``AoE2DEScenario`` mapping.
 
 This file is intentionally a *mapping specification* first:
 explicit field-by-field transformation, heavily documented, and easy to audit.
@@ -11,7 +11,7 @@ explicit field-by-field transformation, heavily documented, and easy to audit.
 Data flow
 ---------
 
-1. **Parse legacy**: `aoe2_geniescx.Scenario` reads legacy ``.scn`` / ``.scx`` into Python objects.
+1. **Parse legacy**: `aoe2_mcgeniescx.Scenario` reads legacy ``.scn`` / ``.scx`` into Python objects.
 2. **Wireup**: `legacy_bridge/bridge_wireup.py` constructs ``AoE2DEScenario.from_default()``.
 3. **This module**: :func:`apply_legacy_scenario_to_de_scenario` copies fields onto the DE scenario.
 
@@ -223,7 +223,7 @@ def _normalize_trigger_text(s: str) -> str:
 
 def apply_legacy_scenario_to_de_scenario(scen: Any, scenario: AoE2DEScenario) -> None:
     """
-    Apply legacy `aoe2_geniescx.Scenario` data onto ``scenario`` (see module docstring for philosophy and unmapped
+    Apply legacy `aoe2_mcgeniescx.Scenario` data onto ``scenario`` (see module docstring for philosophy and unmapped
     fields).
     """
 

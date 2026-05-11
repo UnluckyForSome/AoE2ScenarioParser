@@ -35,8 +35,8 @@ _SKIP_PARSE_NAMES = frozenset({"corlis.aoescn", "original aok - joan 6.scn"})
 
 def cmd_parse_diffchecks() -> int:
     """Parse every legacy container file under ``workbench/diffchecks/*/inputs``."""
-    from aoe2_geniescx.scenario import Scenario  # type: ignore[import-not-found]
-    from aoe2_geniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
+    from aoe2_mcgeniescx.scenario import Scenario  # type: ignore[import-not-found]
+    from aoe2_mcgeniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
 
     root = _diffchecks_root()
     files: list[Path] = []
@@ -74,8 +74,8 @@ def cmd_parse_diffchecks() -> int:
 
 def cmd_smoke_smallsample() -> int:
     """Parse ``legacy_de_pairs_smallsample`` legacy files and assert basic structural invariants."""
-    from aoe2_geniescx import Scenario  # type: ignore[import-not-found]
-    from aoe2_geniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
+    from aoe2_mcgeniescx import Scenario  # type: ignore[import-not-found]
+    from aoe2_mcgeniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
 
     sample_dir = _smallsample_inputs()
     if not sample_dir.is_dir():
@@ -136,8 +136,8 @@ def cmd_smoke_smallsample() -> int:
 
 def cmd_round_trip_smallsample() -> int:
     """Read/write/read smallsample legacy files; compare format + header version."""
-    from aoe2_geniescx.scenario import Scenario  # type: ignore[import-not-found]
-    from aoe2_geniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
+    from aoe2_mcgeniescx.scenario import Scenario  # type: ignore[import-not-found]
+    from aoe2_mcgeniescx.types import legacy_format_version_peek_path  # type: ignore[import-not-found]
 
     sample_dir = _smallsample_inputs()
     if not sample_dir.is_dir():
