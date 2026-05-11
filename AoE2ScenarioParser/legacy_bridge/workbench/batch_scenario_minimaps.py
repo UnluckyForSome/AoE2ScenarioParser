@@ -52,10 +52,6 @@ def _aoesp_package_root() -> Path:
     return _legacy_bridge_root().parent
 
 
-def _mcminimap_dir() -> Path:
-    return _workbench_dir() / "othertools" / "aoe2mcminimap"
-
-
 def _default_minimap_output_dir() -> Path:
     return _workbench_dir() / "othertools" / "aoe2mcminimap_output"
 
@@ -64,9 +60,6 @@ def _ensure_import_paths() -> None:
     pkg = str(_aoesp_package_root())
     if pkg not in sys.path:
         sys.path.insert(0, pkg)
-    mc = str(_mcminimap_dir())
-    if mc not in sys.path:
-        sys.path.insert(0, mc)
 
 
 def _iter_scenario_files(root: Path, recursive: bool) -> Iterable[Path]:
@@ -308,9 +301,16 @@ def main() -> int:
     _ensure_import_paths()
 
     try:
-        import McMinimap as MM  # type: ignore  # noqa: E402
+        import aoe2_mcminimap as MM  # type: ignore  # noqa: E402
     except ImportError as e:
-        print(f"Cannot import McMinimap from {_mcminimap_dir()}: {e}", file=sys.stderr)
+        print(
+            "Cannot import aoe2_mcminimap. Install the released packages with:\n"
+            "  pip install --index-url https://test.pypi.org/simple/ "
+            "--extra-index-url https://pypi.org/simple/ "
+            "AOE2-McMinimap AOE2-McGenieSCX",
+            file=sys.stderr,
+        )
+        print(f"Import error: {e}", file=sys.stderr)
         return 1
 
     try:

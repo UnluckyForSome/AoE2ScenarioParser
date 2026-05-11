@@ -16,7 +16,7 @@ dependencies = [
     "deprecation",
     "typing_extensions",
     "ordered-set==4.1.0",
-    "genie-scx-py @ git+https://github.com/UnluckyForSome/genie-scx-py.git",
+    "AOE2-McGenieSCX>=0.1.0",
 ]
 
 [project.urls]

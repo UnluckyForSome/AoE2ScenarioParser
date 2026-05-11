@@ -6,6 +6,6 @@ supported runtime path for this fork.
 
 ### Active runtime
 
-Legacy parsing and bridge conversion run **in-process** from the **`genie-scx-py`** distribution
-(`pip install` / project dependency) via `import genie_scx_py`.  
+Legacy parsing and bridge conversion run **in-process** from the **`AOE2-McGenieSCX`** distribution
+(`pip install` / project dependency) via `import aoe2_geniescx`.  
 `AoE2ScenarioParser/legacy_bridge/bridge_wireup.py` does **not** spawn Rust binaries.

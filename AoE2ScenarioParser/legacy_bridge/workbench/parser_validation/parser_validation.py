@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-Parse scenario files under a corpus directory with ``genie_scx_py`` and write ``parser_report.txt``.
+Parse scenario files under a corpus directory with ``aoe2_geniescx`` and write ``parser_report.txt``.
 
 By default every matching file under ``--root`` is parsed (sorted by path). Use ``-n`` for a random sample.
 
@@ -41,8 +41,8 @@ class ParseOutcome:
 
 
 def _parse_one(path: Path, *, full_tracebacks: bool) -> ParseOutcome:
-    from genie_scx_py.scenario import Scenario  # type: ignore[import-not-found]
-    from genie_scx_py.types import DefinitiveEditionScenarioError  # type: ignore[import-not-found]
+    from aoe2_geniescx.scenario import Scenario  # type: ignore[import-not-found]
+    from aoe2_geniescx.types import DefinitiveEditionScenarioError  # type: ignore[import-not-found]
 
     try:
         with path.open("rb") as f:
@@ -73,7 +73,7 @@ def _write_report(
     errors = sum(1 for o in outcomes if o.status == "error")
 
     lines: list[str] = [
-        "genie_scx_py parser validation report",
+        "aoe2_geniescx parser validation report",
         "====================================",
         f"Generated (UTC): {datetime.now(timezone.utc).isoformat()}",
         f"Corpus root: {root}",
@@ -116,7 +116,7 @@ def main() -> int:
     default_out = Path(__file__).resolve().parent / "parser_report.txt"
 
     ap = argparse.ArgumentParser(
-        description="Parse scenarios with genie_scx_py and write a report (default: every file under --root)."
+        description="Parse scenarios with aoe2_geniescx and write a report (default: every file under --root)."
     )
     ap.add_argument(
         "--root",

@@ -4,7 +4,7 @@ from __future__ import annotations
 bridge_wireup.py
 
 Glue-only entry point:
-  legacy scenario file -> genie_scx_py.Scenario -> bridge_mapping -> AoE2DEScenario -> .aoe2scenario
+  legacy scenario file -> aoe2_geniescx.Scenario -> bridge_mapping -> AoE2DEScenario -> .aoe2scenario
 
 Transformation logic belongs in `bridge_mapping.py`.
 """
@@ -38,7 +38,7 @@ def convert_legacy_to_de(
     old_print = settings.PRINT_STATUS_UPDATES
     settings.PRINT_STATUS_UPDATES = False
     try:
-        from genie_scx_py import Scenario
+        from aoe2_geniescx import Scenario
 
         scen = Scenario.read_from_bytes(Path(input_path).read_bytes())
         scenario = AoE2DEScenario.from_default()
