@@ -29,6 +29,26 @@ class ParsedScenario:
     def is_definitive_edition(self) -> bool:
         return self.edition == ScenarioEdition.DEFINITIVE
 
+    @property
+    def parse_backend(self) -> str:
+        return "AoE2DEScenario" if self.is_definitive_edition else "aoe2_mcgeniescx.Scenario"
+
+    @property
+    def game_version(self) -> str:
+        game_version = getattr(self.scenario, "game_version", None)
+        if game_version is not None:
+            return str(game_version)
+        return "DE" if self.is_definitive_edition else "legacy"
+
+    @property
+    def scenario_version(self) -> str | None:
+        scenario_version = getattr(self.scenario, "scenario_version", None)
+        if scenario_version is not None:
+            return str(scenario_version)
+        if self.detection.data_version is not None:
+            return str(self.detection.data_version)
+        return None
+
 
 @contextmanager
 def suppress_status_updates(enabled: bool):
@@ -124,10 +144,20 @@ def parse_scenario(
     raise ValueError(detection.reason or "Unable to detect scenario edition")
 
 
+def verify_scenario(
+    source: ScenarioSource,
+    *,
+    name: str = "",
+    suppress_output: bool = False,
+) -> ParsedScenario:
+    return parse_scenario(source, name=name, suppress_output=suppress_output)
+
+
 __all__ = [
     "ParsedScenario",
     "parse_definitive_scenario",
     "parse_legacy_scenario",
     "parse_scenario",
     "suppress_status_updates",
+    "verify_scenario",
 ]
