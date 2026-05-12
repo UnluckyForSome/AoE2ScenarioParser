@@ -16,7 +16,7 @@ dependencies = [
     "deprecation",
     "typing_extensions",
     "ordered-set==4.1.0",
-    "AOE2-McGenieSCX>=0.1.0",
+    "AOE2-McGenieSCX>=0.1.1",
 ]
 
 [project.urls]
