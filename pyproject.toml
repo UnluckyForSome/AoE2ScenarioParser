@@ -1,6 +1,6 @@
 [project]
 name = "AoE2ScenarioParser"
-version = "<VERSION_HERE>"
+version = "1.0.1"
 authors = [
     { name = "Kerwin Sneijders", email = "ksneijders-dev@hotmail.com" },
 ]
