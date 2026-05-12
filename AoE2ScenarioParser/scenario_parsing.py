@@ -30,6 +30,18 @@ class ParsedScenario:
         return self.edition == ScenarioEdition.DEFINITIVE
 
     @property
+    def container_format(self) -> str | None:
+        return self.detection.container_format
+
+    @property
+    def data_version(self) -> float | None:
+        return self.detection.data_version
+
+    @property
+    def detection_reason(self) -> str | None:
+        return self.detection.reason
+
+    @property
     def parse_backend(self) -> str:
         return "AoE2DEScenario" if self.is_definitive_edition else "aoe2_mcgeniescx.Scenario"
 
@@ -144,20 +156,10 @@ def parse_scenario(
     raise ValueError(detection.reason or "Unable to detect scenario edition")
 
 
-def verify_scenario(
-    source: ScenarioSource,
-    *,
-    name: str = "",
-    suppress_output: bool = False,
-) -> ParsedScenario:
-    return parse_scenario(source, name=name, suppress_output=suppress_output)
-
-
 __all__ = [
     "ParsedScenario",
     "parse_definitive_scenario",
     "parse_legacy_scenario",
     "parse_scenario",
     "suppress_status_updates",
-    "verify_scenario",
 ]

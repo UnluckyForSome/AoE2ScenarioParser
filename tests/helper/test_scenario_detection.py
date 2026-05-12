@@ -11,7 +11,6 @@ from aoe2_mcgeniescx._io import deflate_raw
 from aoe2_mcgeniescx.header import SCXHeader
 from aoe2_mcgeniescx.types import SCXVersion
 
-from AoE2ScenarioParser import verify_scenario
 from AoE2ScenarioParser.scenario_detection import (
     ScenarioEdition,
     detect_scenario_edition,
@@ -128,7 +127,7 @@ class TestScenarioParsing(TestCase):
         self.assertEqual(ScenarioEdition.DEFINITIVE, parsed.edition)
         self.assertIs(de_result, parsed.scenario)
 
-    def test_verify_scenario_exposes_legacy_metadata(self):
+    def test_parse_scenario_exposes_legacy_metadata(self):
         data = _build_detection_fixture(b"1.21", 1.14)
         legacy_result = object()
 
@@ -136,14 +135,17 @@ class TestScenarioParsing(TestCase):
             "AoE2ScenarioParser.scenario_parsing.LegacyScenario.read_from_bytes",
             return_value=legacy_result,
         ):
-            parsed = verify_scenario(data)
+            parsed = parse_scenario(data)
 
         self.assertEqual(ScenarioEdition.LEGACY, parsed.edition)
+        self.assertEqual("1.21", parsed.container_format)
+        self.assertEqual(1.14, parsed.data_version)
+        self.assertEqual("legacy format and payload", parsed.detection_reason)
         self.assertEqual("aoe2_mcgeniescx.Scenario", parsed.parse_backend)
         self.assertEqual("legacy", parsed.game_version)
         self.assertEqual("1.14", parsed.scenario_version)
 
-    def test_verify_scenario_exposes_de_metadata(self):
+    def test_parse_scenario_exposes_de_metadata(self):
         data = _build_detection_fixture(b"1.21", 1.30)
 
         class _DeScenarioStub:
@@ -154,9 +156,12 @@ class TestScenarioParsing(TestCase):
             "AoE2ScenarioParser.scenario_parsing.AoE2DEScenario.from_file",
             return_value=_DeScenarioStub(),
         ):
-            parsed = verify_scenario(data, suppress_output=True)
+            parsed = parse_scenario(data, suppress_output=True)
 
         self.assertEqual(ScenarioEdition.DEFINITIVE, parsed.edition)
+        self.assertEqual("1.21", parsed.container_format)
+        self.assertEqual(1.30, parsed.data_version)
+        self.assertEqual("scenario data version", parsed.detection_reason)
         self.assertEqual("AoE2DEScenario", parsed.parse_backend)
         self.assertEqual("DE", parsed.game_version)
         self.assertEqual("1.57", parsed.scenario_version)

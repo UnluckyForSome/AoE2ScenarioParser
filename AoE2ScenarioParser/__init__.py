@@ -9,7 +9,6 @@ from .scenario_parsing import (
     parse_definitive_scenario,
     parse_legacy_scenario,
     parse_scenario,
-    verify_scenario,
 )
 from .version import VERSION, __version__
 
@@ -24,5 +23,4 @@ __all__ = [
     "parse_definitive_scenario",
     "parse_legacy_scenario",
     "parse_scenario",
-    "verify_scenario",
 ]
