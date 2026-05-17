@@ -14,6 +14,7 @@ from aoe2_mcgeniescx.types import (
     is_ascii_scx_version_prefix,
     is_definitive_edition_container_format,
     is_definitive_edition_scenario_data_version,
+    normalize_scenario_data_version,
 )
 
 ScenarioSource = Union[str, Path, bytes, bytearray, memoryview, BinaryIO]
@@ -92,7 +93,9 @@ def detect_scenario_edition(source: ScenarioSource) -> ScenarioDetectionResult:
                 container_format=container_format,
                 reason="scenario payload too short",
             )
-        data_version = struct.unpack_from("<f", payload, 4)[0]
+        data_version = normalize_scenario_data_version(
+            struct.unpack_from("<f", payload, 4)[0]
+        )
     except Exception as exc:  # noqa: BLE001 - keep corrupt/partial files distinct from valid legacy.
         return ScenarioDetectionResult(
             edition=ScenarioEdition.UNKNOWN,

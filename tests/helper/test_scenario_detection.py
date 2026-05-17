@@ -45,8 +45,16 @@ class TestScenarioDetection(TestCase):
 
         self.assertEqual(ScenarioEdition.LEGACY, result.edition)
         self.assertEqual("1.21", result.container_format)
-        self.assertAlmostEqual(1.14, result.data_version)
+        self.assertEqual(1.14, result.data_version)
         self.assertFalse(is_definitive_edition(data))
+
+    def test_normalizes_f32_aoc_data_version(self):
+        data = _build_detection_fixture(b"1.21", 1.22)
+
+        result = detect_scenario_edition(data)
+
+        self.assertEqual(ScenarioEdition.LEGACY, result.edition)
+        self.assertEqual(1.22, result.data_version)
 
     def test_detects_de_by_container_format(self):
         data = b"1.36"
@@ -65,7 +73,7 @@ class TestScenarioDetection(TestCase):
 
         self.assertEqual(ScenarioEdition.DEFINITIVE, result.edition)
         self.assertEqual("1.21", result.container_format)
-        self.assertAlmostEqual(1.30, result.data_version)
+        self.assertEqual(1.30, result.data_version)
         self.assertTrue(is_definitive_edition(data))
 
     def test_keeps_malformed_bytes_unknown(self):
